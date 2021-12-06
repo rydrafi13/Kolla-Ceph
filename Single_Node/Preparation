@@ -1,0 +1,12 @@
+hostnamectl set-hostname onenode
+vim /etc/hosts
+#127.0.0.1 onenode
+sudo passwd root
+useradd stack 
+passwd stack
+usermod -aG sudo stack
+visudo
+# stack ALL=(ALL) NOPASSWD:ALL
+nano /etc/netplan/00-installer-config.yaml
+# dhcp4: false
+timedatectl set-timezone Asia/Jakarta

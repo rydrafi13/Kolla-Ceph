@@ -1,0 +1,100 @@
+1. Existing Ceph
+2. Existing Ceph storage pools
+3. Existing credential keyring (Glance, Cinder, Nova)
+
+## create ceph storage pools
+NOTE: on node ceph mon
+
+# ceph osd pool create volumes
+# ceph osd pool create images
+# ceph osd pool create backups
+# ceph osd pool create vms
+
+# rbd pool init volumes
+# rbd pool init images
+# rbd pool init backups
+# rbd pool init vms
+
+## setup ceph client authentication
+NOTE: on node ceph client
+
+# ceph auth get-or-create client.glance mon 'profile rbd' osd 'profile rbd pool=images' mgr 'profile rbd pool=images'
+# ceph auth get-or-create client.cinder mon 'profile rbd' osd 'profile rbd pool=volumes, profile rbd pool=vms, profile rbd-read-only pool=images' mgr 'profile rbd pool=volumes, profile rbd pool=vms'
+# ceph auth get-or-create client.cinder-backup mon 'profile rbd' osd 'profile rbd pool=backups' mgr 'profile rbd pool=backups'
+
+# ceph auth get-or-create client.glance | tee /etc/ceph/ceph.client.glance.keyring
+# ceph auth get-or-create client.cinder | tee /etc/ceph/ceph.client.cinder.keyring
+# ceph auth get-or-create client.cinder-backup | tee /etc/ceph/ceph.client.cinder-backup.keyring
+
+## prequesite
+NOTE: on node openstack
+
+# mkdir config
+# mkdir /etc/kolla/config/nova
+# mkdir /etc/kolla/config/glance
+# mkdir -p /etc/kolla/config/cinder/cinder-volume
+# mkdir /etc/kolla/config/cinder/cinder-backup
+
+## integrate ceph with glance
+NOTE: on node openstack
+
+# vim /etc/kolla/globals.yml
+*script
+    glance_backend_ceph: "yes"
+    # Glance
+    ceph_glance_keyring: "ceph.client.glance.keyring"
+    ceph_glance_user: "glance"
+    ceph_glance_pool_name: "images"
+
+copy file ceph to openstack
+NOTE: on node ceph
+# scp /etc/ceph/ceph.conf root@10.10.10.4:/etc/kolla/config/glance/
+# scp /etc/ceph/ceph.client.glance.keyring root@10.10.10.4:/etc/kolla/config/glance/
+
+create glance.conf
+NOTE: on node openstack
+# vim /etc/kolla/config/glance.conf
+*script
+    [GLOBAL]
+    show_image_direct_url = True
+
+## integrate ceph with cinder
+NOTE: on node openstack
+
+# vim /etc/kolla/globals.yml
+*script
+    enable_cinder: "yes"
+    cinder_backend_ceph: "yes"
+    # Cinder
+    ceph_cinder_keyring: "ceph.client.cinder.keyring"
+    ceph_cinder_user: "cinder"
+    ceph_cinder_pool_name: "volumes"
+    ceph_cinder_backup_keyring: "ceph.client.cinder-backup.keyring"
+    ceph_cinder_backup_user: "cinder-backup"
+    ceph_cinder_backup_pool_name: "backups"
+
+copy file ceph to openstack
+NOTE: on node ceph
+# scp /etc/ceph/ceph.conf root@10.10.10.4:/etc/kolla/config/cinder/
+# scp /etc/ceph/ceph.client.cinder.keyring root@10.10.10.4:/etc/kolla/config/cinder/cinder-volume/
+# scp /etc/ceph/ceph.client.cinder.keyring root@10.10.10.4:/etc/kolla/config/cinder/cinder-backup/
+# scp /etc/ceph/ceph.client.cinder-backup.keyring root@10.10.10.4:/etc/kolla/config/cinder/cinder-backup/
+
+## integrate ceph with nova
+NOTE: on node openstack
+
+# vim /etc/kolla/globals.yml
+*script
+    nova_backend_ceph: "yes"
+    # Nova
+    ceph_nova_keyring: "{{ ceph_cinder_keyring }}"
+    ceph_nova_user: "nova"
+    ceph_nova_pool_name: "vms"
+
+copy file ceph to openstack
+NOTE: on node ceph
+# scp /etc/ceph/ceph.conf root@10.10.10.4:/etc/kolla/config/nova/
+# scp /etc/ceph/ceph.client.cinder.keyring root@10.10.10.4:/etc/kolla/config/nova/
+
+### Finish
+Run kolla-ansible
