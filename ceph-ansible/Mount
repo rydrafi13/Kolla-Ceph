@@ -1,0 +1,6 @@
+apt install open-iscsi
+iscsiadm -m discovery -t sendtargets -p ip_address
+iscsiadm --mode node --targetname iqn.2005-10.org.freenas.ctl:nas-rafi --portal ip_address --login
+fdisk -l
+mount /dev/sdb /mnt
+cd /mnt/

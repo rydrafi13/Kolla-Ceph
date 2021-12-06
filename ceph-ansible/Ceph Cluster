@@ -1,0 +1,74 @@
+- Menggunakan ceph-ansible versi stable-5.0
+
+# admin
+vim /etc/hosts
+*script
+172.23.2.1 cephmon
+172.23.2.2 cephnode1
+172.23.2.3 cephnode2
+
+ping cephmon
+ping cephnode1
+ping cephnode2
+
+ssh-keygen
+ssh-copy-id cephmon
+ssh-copy-id cephnode1
+ssh-copy-id cephnode2
+
+git clone https://github.com/ceph/ceph-ansible.git
+cd ceph-ansible/
+git checkout stable-5.0
+apt install python3-pip
+pip install -r requirements.txt
+
+vim inventory
+*script
+[mons]
+cephmon
+
+[osds]
+cephnode1
+cephnode2
+
+[mgrs]
+cephmon
+
+[grafana-server]
+cephmon
+
+ansible all -i inventory -m ping
+
+cp site.yml.sample site.yml
+cd group_vars/
+cp all.yml.sample all.yml
+cp mons.yml.sample mons.yml
+cp osds.yml.sample osds.yml
+
+vim all.yml
+*script
+ceph_origin: repository
+ceph_repository: community
+ceph_stable_release: octopus
+monitor_interface: ens160
+public_network: 172.23.0.0/20
+cluster_network: 172.23.0.0/20
+dashboard_enabled: True
+dashboard_admin_user: admin
+dashboard_admin_password: p@ssw0rd
+grafana_admin_user: admin
+grafana_admin_password: p@ssw0rd
+
+vim mons.yml
+vim osds.yml
+*script
+devices:
+  - /dev/sdb
+osd_auto_discovery: true
+
+ansible-playbook -i inventory site.yml
+ceph -s
+ceph mgr services
+
+https://172.23.2.1:8443/#/dashboard
+http://172.23.2.1:9283/metrics
